@@ -21,6 +21,7 @@ class User extends Authenticatable
         'name',
         'email',
         'password',
+        'birth_date',
     ];
 
     /**
@@ -44,5 +45,13 @@ class User extends Authenticatable
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
         ];
+    }
+
+    /**
+     * Relationship => user can have many notes
+     */
+    public function expenseNotes()
+    {
+        return $this->hasMany(ExpenseNote::class);
     }
 }

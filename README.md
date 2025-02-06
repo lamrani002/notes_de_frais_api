@@ -60,7 +60,7 @@ Assurez-vous d'avoir installé : **(Si ce n'est pas le cas, accéder au [guide d
     ```
 2. **Migrer la base de données** :
     ```bash
-    php artisan migrate
+    php artisan migrate --seed
     ```
 3. **Démarrer le serveur Laravel** :
     ```bash
@@ -89,6 +89,7 @@ Ce projet inclut les fichiers suivants :
     ```bash
     cp .env.example .env
     ```
+    **IMPORTANT !!(N'oublier pas de changer  DB_HOST=127.0.0.1 en  DB_HOST=db)**
 
 2. **Construire et démarrer les conteneurs** :
     ```bash
@@ -107,7 +108,7 @@ Ce projet inclut les fichiers suivants :
 
 5. **Lancer les migrations** :
     ```bash
-    docker-compose exec app php artisan migrate
+    docker-compose exec app php artisan migrate --seed
     ```
 
 6. **Accéder à l’application** :
