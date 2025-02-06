@@ -1,0 +1,55 @@
+version: "2.2"
+
+services:
+  # -- (PHP-FPM + Composer) --
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: laravel_app
+    # On monte tout le projet dans /var/www/html
+    volumes:
+      - ./:/var/www/html
+    # On redémarre toujours pour le dev
+    restart: unless-stopped
+    # Variables d'env pour que la connexion à MySQL fonctionne
+    environment:
+      DB_CONNECTION: mysql
+      DB_HOST: db
+      DB_PORT: 3306
+      DB_DATABASE: notes_de_frais
+      DB_USERNAME: laravel
+      DB_PASSWORD: secret
+    depends_on:
+      - db
+
+  # -- Le service Nginx
+  webserver:
+    image: nginx:alpine
+    container_name: laravel_webserver
+    depends_on:
+      - app
+    volumes:
+      - ./:/var/www/html
+      - ./docker/nginx.conf:/etc/nginx/conf.d/default.conf
+    ports:
+      - "8080:80"
+    restart: unless-stopped
+
+  # -- Le service MySQL --
+  db:
+    image: mysql:8.0
+    container_name: laravel_db
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: notes_de_frais
+      MYSQL_USER: laravel
+      MYSQL_PASSWORD: secret
+    ports:
+      - "3307:3306"
+    volumes:
+      - dbdata:/var/lib/mysql
+
+volumes:
+  dbdata:
