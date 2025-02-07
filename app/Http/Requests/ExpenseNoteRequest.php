@@ -25,13 +25,29 @@ class ExpenseNoteRequest extends FormRequest
      */
     public function rules()
     {
-        return [
-            'note_date' => 'required|date',
-            'amount' => 'required|numeric|min:0',
-            'type' => 'required|in:essence,péage,repas,conférence',
-            'company_id' => 'required|exists:companies,id',
-        ];
+        if ($this->isMethod('post')) {
+            // Tous les champs sont requis
+            return [
+                'note_date' => 'required|date',
+                'amount' => 'required|numeric|min:0',
+                'type' => 'required|in:essence,péage,repas,conférence',
+                'company_id' => 'required|exists:companies,id',
+            ];
+        }
+    
+        if ($this->isMethod('put')) {
+            // Les champs sont optionnels
+            return [
+                'note_date' => 'sometimes|date',
+                'amount' => 'sometimes|numeric|min:0',
+                'type' => 'sometimes|in:essence,péage,repas,conférence',
+                'company_id' => 'sometimes|exists:companies,id',
+            ];
+        }
+    
+        return [];
     }
+    
 
     /**
      * Messages d'erreur personnalisés.
@@ -62,7 +78,7 @@ class ExpenseNoteRequest extends FormRequest
     protected function failedValidation(Validator $validator)
     {
         throw new HttpResponseException(response()->json([
-            'errors' => $validator->errors()->first(),
+            'errors' => $validator->errors()
         ], 422));
     }
 

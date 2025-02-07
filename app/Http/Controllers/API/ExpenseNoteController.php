@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Services\ExpenseNoteService;
 use App\Http\Requests\ExpenseNoteRequest;
 use Exception;
+use Illuminate\Database\Eloquent\ModelNotFoundException;
 
 /**
  * Contrôleur pour gérer les notes de frais via API.
@@ -87,12 +88,22 @@ class ExpenseNoteController extends Controller
     public function update(ExpenseNoteRequest $request, $id)
     {
         try {
-            $note = $this->expenseNoteService->updateNote($id, $request->validated());
-            return response()->json($note, 200);
+            // Vérifier si la note existe
+            $note = $this->expenseNoteService->getNoteById($id);
+
+            // verifier la validation
+            $validatedData = $request->validated();
+
+            $updatedNote = $this->expenseNoteService->updateNote($id, $validatedData);
+
+            return response()->json($updatedNote, 200);
+        } catch (ModelNotFoundException $e) {
+            return response()->json(['error' => 'Note introuvable'], 404);
         } catch (Exception $e) {
-            return response()->json(['error' => 'Erreur lors de la mise à jour de la note de frais'], 400);
-        }
+            return response()->json(['error' => $e->getMessage()], 500);
+        }    
     }
+
 
     /**
      * Supprime une note de frais.
@@ -106,7 +117,7 @@ class ExpenseNoteController extends Controller
             $this->expenseNoteService->deleteNote($id);
             return response()->json(['message' => 'Note supprimée'], 200);
         } catch (Exception $e) {
-            return response()->json(['error' => 'Erreur lors de la suppression de la note de frais'], 400);
+            return response()->json(['error' => 'Erreur lors de la suppression de la note de frais'], 404);
         }
     }
 }
