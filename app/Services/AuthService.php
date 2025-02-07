@@ -42,10 +42,8 @@ class AuthService
         $user = User::where('email', $credentials['email'])->first();
 
         if (!$user || !Hash::check($credentials['password'], $user->password)) {
-            throw ValidationException::withMessages([
-                'email' => ['Les informations de connexion sont incorrectes.'],
-            ]);
-        }
+            return ['error' => 'Les informations de connexion sont incorrectes.'];
+        }    
 
         $token = $user->createToken('auth_token')->plainTextToken;
 
@@ -64,5 +62,6 @@ class AuthService
     public function logout(User $user)
     {
         $user->tokens()->delete();
+        return ['message' => 'Déconnexion réussie'];
     }
 }

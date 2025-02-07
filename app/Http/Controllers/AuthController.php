@@ -38,13 +38,17 @@ class AuthController extends Controller
     {
         try {
             $data = $this->authService->login($request->validated());
+
+            // Vérifie si la réponse à une erreur
+            if (isset($data['error'])) {
+                return response()->json(['error' => $data['error']], 401);
+            }
             return response()->json($data, 200);
-        } catch (ValidationException $e) {
-            return response()->json(['error' => $e->errors()], 422);
         } catch (Exception $e) {
             return response()->json(['error' => $e->getMessage()], 500);
         }
     }
+
 
     /**
      * Déconnexion de l'utilisateur.
