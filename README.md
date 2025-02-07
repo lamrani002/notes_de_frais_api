@@ -114,7 +114,7 @@ Ce projet inclut les fichiers suivants :
 6. **Accéder à l’application** :
     Ouvrir un navigateur sur http://localhost:8080.
 
-## 🔐 3. Système d'Authentification
+## 3. Système d'Authentification
 
 L'API utilise **Laravel Sanctum** pour la gestion des tokens d'authentification.
 
@@ -146,15 +146,15 @@ curl -X POST http://127.0.0.1:8000/api/login -d '{"email": "test@example.com", "
 
 ---
 
-## 📡 4. Endpoints de l’API
+##  4. Endpoints de l’API
 
 | Méthode | Route                   | Description                               |
 |----------|-------------------------|-------------------------------------------|
 | GET      | /api/expense-notes      | Récupère toutes les notes de frais     |
 | GET      | /api/expense-notes/{id} | Récupère une note spécifique         |
-| POST     | /api/expense-notes      | Crée une nouvelle note (Admin uniquement) |
-| PUT      | /api/expense-notes/{id} | Met à jour une note (Admin uniquement)  |
-| DELETE   | /api/expense-notes/{id} | Supprime une note (Admin uniquement)    |
+| POST     | /api/expense-notes      | Crée une nouvelle note (ID=1 uniquement) |
+| PUT      | /api/expense-notes/{id} | Met à jour une note (ID=1 uniquement)  |
+| DELETE   | /api/expense-notes/{id} | Supprime une note (ID=1 uniquement)    |
 
 **Exemple d'appel API avec token :**
 ```bash
@@ -163,7 +163,7 @@ curl -X GET http://127.0.0.1:8000/api/expense-notes -H "Authorization: Bearer ab
 
 ---
 
-## 🛠 5. Exécuter les tests
+## 5. Exécuter les tests
 
 ###  Tests unitaires et fonctionnels
 ```bash
