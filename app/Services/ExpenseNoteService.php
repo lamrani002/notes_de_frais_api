@@ -45,15 +45,11 @@ class ExpenseNoteService
      *
      * @param int $id L'identifiant de la note de frais.
      * @return ExpenseNote
-     * @throws Exception Si la note de frais est introuvable.
+     * @throws ModelNotFoundException Si la note de frais est introuvable.
      */
     public function getNoteById($id)
     {
-        try {
-            return ExpenseNote::where('user_id', $this->userId)->findOrFail($id);
-        } catch (Exception $e) {
-            throw new Exception("Note de frais introuvable.");
-        }
+        return ExpenseNote::where('user_id', $this->userId)->findOrFail($id);  
     }
 
     /**
