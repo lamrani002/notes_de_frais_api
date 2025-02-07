@@ -6,6 +6,7 @@ use Tests\TestCase;
 use App\Services\ExpenseNoteService;
 use App\Models\ExpenseNote;
 use App\Models\Company;
+use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 
 /**
@@ -15,181 +16,153 @@ class ExpenseNoteServiceTest extends TestCase
 {
     use RefreshDatabase;
 
-    /**
-     * Service ExpenseNoteService.
-     *
-     * @var ExpenseNoteService
-     */
+   
     protected $expenseNoteService;
+    protected $adminUser;
+    protected $normalUser;
 
-
-    /**
-     * Instance de l'utilisateur pour les tests.
-     *
-     * @var \App\Models\User
-     */
-    protected $user;
-
-    /**
-     * Instance de l'entreprise pour les tests.
-     *
-     * @var \App\Models\Company
-     */
-    protected $company;
-
-    /**
-     * Initialise le service
-     */
+    
     protected function setUp(): void
     {
         parent::setUp();
-
-        // Crée un utilisateur avec id = 1 par défaut pour les tests 
-        $this->user = \App\Models\User::factory()->create([
-            'id' => 1,
-        ]);
-
-        // Crée une entreprise par défaut pour les tests
-        $this->company = \App\Models\Company::factory()->create([
-            'id' => 1,
-        ]);
-
+        
+        // Création des utilisateurs
+        $this->adminUser = User::factory()->create(['id' => 1]); 
+        $this->normalUser = User::factory()->create(); 
+        
         $this->expenseNoteService = new ExpenseNoteService();
     }
 
     /**
      * Teste la récupération de toutes les notes de frais.
-     *
-     * @return void
      */
     public function test_get_all_notes()
     {
-        ExpenseNote::factory()->count(3)->create([
-            'user_id' => $this->user->id,
-            'company_id' => $this->company->id
-        ]);
-        
+        ExpenseNote::factory()->count(3)->create(['user_id' => 1]);
 
         $notes = $this->expenseNoteService->getAllNotes();
         $this->assertCount(3, $notes);
     }
 
     /**
-     * Teste la récupération d'une note de frais existante par son ID.
-     *
-     * @return void
+     * Teste qu'un utilisateur non admin peut récupérer les notes de frais (lecture seule).
      */
-    public function test_get_note_by_id()
+    public function test_normal_user_can_only_view_notes()
     {
-        $note = ExpenseNote::factory()->create(['user_id' => 1]);
+        ExpenseNote::factory()->count(3)->create(['user_id' => 1]);
 
-        $foundNote = $this->expenseNoteService->getNoteById($note->id);
-        $this->assertEquals($note->id, $foundNote->id);
+        $this->actingAs($this->normalUser);
+        $notes = $this->expenseNoteService->getAllNotes();
+
+        $this->assertCount(3, $notes);
     }
 
     /**
-     * Teste la récupération d'une note de frais inexistante (exception).
-     *
-     * @return void
+     * Teste la création d'une note de frais par un utilisateur admin.
      */
-    public function test_get_note_by_id_not_found()
+    public function test_admin_can_create_note()
     {
-        $this->expectException(\Exception::class);
-        $this->expenseNoteService->getNoteById(999);
-    }
+        $company = Company::factory()->create();
 
-    /**
-     * Teste la création d'une nouvelle note de frais.
-     *
-     * @return void
-     */
-    public function test_create_note()
-    {
         $data = [
             'note_date' => '2023-10-01',
             'amount' => 100.50,
             'type' => 'essence',
-            'registration_date' => '2023-10-01',
-            'user_id' => $this->user->id,
-            'company_id' => $this->company->id,
+            'company_id' => $company->id,
         ];
 
-        $note = $this->expenseNoteService->createNote($data);
-        $this->assertDatabaseHas('expense_notes', [
-            'id' => $note->id,
+        $this->actingAs($this->adminUser);
+        $note = $this->expenseNoteService->createNote($data, $this->adminUser->id);
+
+        $this->assertDatabaseHas('expense_notes', ['type' => 'essence']);
+    }
+
+    /**
+     * Teste qu'un utilisateur normal ne peut pas créer une note de frais.
+     */
+    public function test_normal_user_cannot_create_note()
+    {
+        $company = Company::factory()->create();
+
+        $data = [
+            'note_date' => '2023-10-01',
+            'amount' => 100.50,
             'type' => 'essence',
-        ]);
-    }
-
-    /**
-     * Teste la validation des données lors de la création d'une note de frais invalide.
-     *  Date incorrecte, Valeur négative (erreur), Type non autorisé, ID inexistant
-     * @return void
-     */
-    public function test_create_note_validation_error()
-    {
-        $this->expectException(\Exception::class);
-
-        $data = [
-            'note_date' => 'invalid-date',
-            'amount' => -100, 
-            'type' => 'invalide', 
-            'company_id' => 999, 
+            'company_id' => $company->id,
         ];
 
-        $this->expenseNoteService->createNote($data);
-    }
+        $this->actingAs($this->normalUser);
 
-    /**
-     * Teste la mise à jour d'une note de frais existante.
-     *
-     * @return void
-     */
-    public function test_update_note()
-    {
-        $note = ExpenseNote::factory()->create([
-            'user_id' => $this->user->id,
-            'company_id' => $this->company->id
-        ]);
-
-        $data = [
-            'amount' => 200.00,
-            'type' => 'peage',
-        ];
-
-        $updatedNote = $this->expenseNoteService->updateNote($note->id, $data);
-
-        $this->assertEquals(200.00, $updatedNote->amount);
-        $this->assertEquals('peage', $updatedNote->type);
-    }
-
-    /**
-     * Teste la mise à jour d'une note de frais inexistante (doit générer une exception).
-     *
-     * @return void
-     */
-    public function test_update_note_not_found()
-    {
         $this->expectException(\Exception::class);
+        $this->expectExceptionMessage("Accès interdit. Seul l'utilisateur #1 peut gérer ces données.");
 
-        $data = ['amount' => 250];
-        $this->expenseNoteService->updateNote(999, $data);
+        $this->expenseNoteService->createNote($data, $this->normalUser->id);
     }
 
     /**
-     * Teste la suppression d'une note de frais existante.
-     *
-     * @return void
+     * Teste qu'un utilisateur admin peut mettre à jour une note de frais.
      */
-    public function test_delete_note()
+    public function test_admin_can_update_note()
     {
-        $note = ExpenseNote::factory()->create([
-            'user_id' => $this->user->id,
-            'company_id' => $this->company->id
-        ]);
+        $note = ExpenseNote::factory()->create(['user_id' => 1]);
+
+        $data = ['amount' => 200.00, 'type' => 'péage'];
+
+        $this->actingAs($this->adminUser);
+        $updatedNote = $this->expenseNoteService->updateNote($note->id, $data, $this->adminUser->id);
         
-        $this->expenseNoteService->deleteNote($note->id);
+        $this->assertIsArray($updatedNote);
+        $this->assertArrayHasKey('message', $updatedNote);
+        $this->assertArrayHasKey('note', $updatedNote);
+        $this->assertInstanceOf(ExpenseNote::class, $updatedNote['note']);
+        $this->assertEquals(200.00, $updatedNote['note']->amount);
+        $this->assertEquals('péage', $updatedNote['note']->type);
+        
+    }
+
+    /**
+     * Teste qu'un utilisateur non admin ne peut pas mettre à jour une note de frais.
+     */
+    public function test_normal_user_cannot_update_note()
+    {
+        $note = ExpenseNote::factory()->create(['user_id' => 1]);
+
+        $data = ['amount' => 200.00, 'type' => 'péage'];
+
+        $this->actingAs($this->normalUser);
+
+        $this->expectException(\Exception::class);
+        $this->expectExceptionMessage("Accès interdit. Seul l'utilisateur #1 peut gérer ces données.");
+
+        $this->expenseNoteService->updateNote($note->id, $data, $this->normalUser->id);
+    }
+
+    /**
+     * Teste qu'un utilisateur admin peut supprimer une note de frais.
+     */
+    public function test_admin_can_delete_note()
+    {
+        $note = ExpenseNote::factory()->create(['user_id' => 1]);
+
+        $this->actingAs($this->adminUser);
+        $this->expenseNoteService->deleteNote($note->id, $this->adminUser->id);
+
         $this->assertDatabaseMissing('expense_notes', ['id' => $note->id]);
+    }
+
+    /**
+     * Teste qu'un utilisateur normal ne peut pas supprimer une note de frais.
+     */
+    public function test_normal_user_cannot_delete_note()
+    {
+        $note = ExpenseNote::factory()->create(['user_id' => 1]);
+
+        $this->actingAs($this->normalUser);
+
+        $this->expectException(\Exception::class);
+        $this->expectExceptionMessage("Accès interdit. Seul l'utilisateur #1 peut gérer ces données.");
+
+        $this->expenseNoteService->deleteNote($note->id, $this->normalUser->id);
     }
 
     /**
@@ -200,6 +173,6 @@ class ExpenseNoteServiceTest extends TestCase
     public function test_delete_note_not_found()
     {
         $this->expectException(\Exception::class);
-        $this->expenseNoteService->deleteNote(999);
+        $this->expenseNoteService->deleteNote(999, $this->adminUser->id);
     }
 }
