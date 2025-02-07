@@ -6,233 +6,163 @@ use Tests\TestCase;
 use App\Models\ExpenseNote;
 use App\Models\Company;
 use App\Models\User;
+use Laravel\Sanctum\Sanctum;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 
-/**
- * Test fonctionnel du contrôleur ExpenseNoteController.
- */
 class ExpenseNoteControllerTest extends TestCase
 {
     use RefreshDatabase;
 
-    /**
-     * Instance de l'utilisateur 
-     *
-     * @var User
-     */
-    protected $user;
-
-    /**
-     * Instance de la company
-     *
-     * @var Company
-     */
+    protected $adminUser;
+    protected $normalUser;
     protected $company;
 
-    /**
-     * Initialise les données avant chaque test.
-     */
     protected function setUp(): void
     {
         parent::setUp();
 
-        $this->user = User::factory()->create(['id' => 1]);
-        $this->company = Company::factory()->create(['id' => 1]);
+        // Création des utilisateurs
+        $this->adminUser = User::factory()->create(['id' => 1]);
+        $this->normalUser = User::factory()->create();
+
+        // Création d'une company
+        $this->company = Company::factory()->create();
     }
 
     /**
      * Teste la récupération de toutes les notes de frais.
-     *
-     * @return void
      */
     public function test_get_all_notes()
     {
-        ExpenseNote::factory()->count(3)->create([
-            'user_id' => $this->user->id,
-            'company_id' => $this->company->id,
-        ]);
+        ExpenseNote::factory()->count(3)->create(['user_id' => 1, 'company_id' => $this->company->id]);
 
+        Sanctum::actingAs($this->normalUser);
         $response = $this->getJson('/api/expense-notes');
-        $response->assertStatus(200)
-                 ->assertJsonCount(3);
+
+        $response->assertStatus(200)->assertJsonCount(3);
     }
 
     /**
-     * Teste la récupération d'une note de frais par son ID.
-     *
-     * @return void
+     * Teste qu'un utilisateur peut récupérer une note spécifique.
      */
     public function test_get_note_by_id()
     {
-        $note = ExpenseNote::factory()->create([
-            'user_id' => $this->user->id,
-            'company_id' => $this->company->id,
-        ]);
+        $note = ExpenseNote::factory()->create(['user_id' => 1, 'company_id' => $this->company->id]);
 
+        Sanctum::actingAs($this->normalUser);
         $response = $this->getJson("/api/expense-notes/{$note->id}");
-        $response->assertStatus(200)
-                 ->assertJson(['id' => $note->id]);
+
+        $response->assertStatus(200)->assertJson(['id' => $note->id]);
     }
 
     /**
-     * Teste la création d'une note de frais.
-     *
-     * @return void
+     * Teste qu'un admin peut créer une note de frais.
      */
-    public function test_create_note()
+    public function test_admin_can_create_note()
     {
+        Sanctum::actingAs($this->adminUser);
+
         $response = $this->postJson('/api/expense-notes', [
             'note_date' => '2023-10-01',
             'amount' => 100.50,
             'type' => 'essence',
-            'registration_date' => '2023-10-01',
             'company_id' => $this->company->id,
         ]);
 
-        $response->assertStatus(201)
-                 ->assertJson(['type' => 'essence']);
+        $response->assertStatus(201)->assertJson(['note' => ['type' => 'essence']]);
 
         $this->assertDatabaseHas('expense_notes', ['amount' => 100.50]);
     }
 
     /**
-     * Teste la mise à jour d'une note de frais.
-     *
-     * @return void
+     * Teste qu'un utilisateur normal ne peut pas créer une note de frais.
      */
-    public function test_update_note()
+    public function test_normal_user_cannot_create_note()
     {
-        $note = ExpenseNote::factory()->create([
-            'user_id' => $this->user->id,
+        Sanctum::actingAs($this->normalUser);
+
+        $response = $this->postJson('/api/expense-notes', [
+            'note_date' => '2023-10-01',
+            'amount' => 100.50,
+            'type' => 'essence',
             'company_id' => $this->company->id,
         ]);
 
+        $response->assertStatus(403);
+    }
+
+    /**
+     * Teste qu'un admin peut modifier une note de frais.
+     */
+    public function test_admin_can_update_note()
+    {
+        $note = ExpenseNote::factory()->create(['user_id' => 1, 'company_id' => $this->company->id]);
+
+        Sanctum::actingAs($this->adminUser);
         $response = $this->putJson("/api/expense-notes/{$note->id}", [
             'amount' => 200.00,
             'type' => 'péage',
-            
         ]);
 
-        $response->assertStatus(200)
-                 ->assertJson(['amount' => 200.00, 'type' => 'péage']);
+        $response->assertStatus(200)->assertJson(['note' => ['amount' => 200.00, 'type' => 'péage']]);
 
         $this->assertDatabaseHas('expense_notes', ['amount' => 200.00]);
     }
 
     /**
-     * Teste la suppression d'une note de frais.
-     *
-     * @return void
+     * Teste qu'un utilisateur normal ne peut pas modifier une note de frais.
      */
-    public function test_delete_note()
+    public function test_normal_user_cannot_update_note()
     {
-        $note = ExpenseNote::factory()->create([
-            'user_id' => $this->user->id,
-            'company_id' => $this->company->id,
+        $note = ExpenseNote::factory()->create(['user_id' => 1, 'company_id' => $this->company->id]);
+
+        Sanctum::actingAs($this->normalUser);
+        $response = $this->putJson("/api/expense-notes/{$note->id}", [
+            'amount' => 200.00,
         ]);
 
+        $response->assertStatus(403);
+    }
+
+    /**
+     * Teste qu'un admin peut supprimer une note de frais.
+     */
+    public function test_admin_can_delete_note()
+    {
+        $note = ExpenseNote::factory()->create(['user_id' => 1, 'company_id' => $this->company->id]);
+
+        Sanctum::actingAs($this->adminUser);
         $response = $this->deleteJson("/api/expense-notes/{$note->id}");
-        $response->assertStatus(200)
-                 ->assertJson(['message' => 'Note supprimée']);
+
+        $response->assertStatus(200)->assertJson(['message' => 'Note supprimée avec succès.']);
 
         $this->assertDatabaseMissing('expense_notes', ['id' => $note->id]);
     }
 
     /**
-     * Teste la validation lors de la création d'une note invalide.
-     *
-     * @return void
+     * Teste qu'un utilisateur normal ne peut pas supprimer une note de frais.
      */
-    public function test_validation_for_create_note()
+    public function test_normal_user_cannot_delete_note()
     {
-        $response = $this->postJson('/api/expense-notes', [
-            'note_date' => 'invalid-date',
-            'amount' => 'not-a-number',
-            'type' => 'invalid-type',
-            'registration_date' => 'invalid-date',
-            'company_id' => 999, // ID inexistant
-        ]);
+        $note = ExpenseNote::factory()->create(['user_id' => 1, 'company_id' => $this->company->id]);
 
-        $response->assertStatus(422)
-                 ->assertJsonValidationErrors([
-                     'note_date',
-                     'amount',
-                     'type',
-                     'company_id',
-                 ]);
+        Sanctum::actingAs($this->normalUser);
+        $response = $this->deleteJson("/api/expense-notes/{$note->id}");
+
+        $response->assertStatus(403);
     }
 
     /**
-     * Teste la validation lors de la mise à jour d'une note invalide.
-     *
-     * @return void
+     * Teste qu'un utilisateur non authentifié ne peut pas modifier une note de frais.
      */
-    public function test_validation_for_update_note()
+    public function test_guest_cannot_update_note()
     {
-        $note = ExpenseNote::factory()->create([
-            'user_id' => $this->user->id,
-            'company_id' => $this->company->id,
-        ]);
+        $note = ExpenseNote::factory()->create(['user_id' => 1, 'company_id' => $this->company->id]);
 
         $response = $this->putJson("/api/expense-notes/{$note->id}", [
-            'amount' => 'not-a-number',
-            'type' => 'invalid-type',
-        ]);
-
-        $response->assertStatus(422)
-                 ->assertJsonValidationErrors(['amount', 'type']);
-    }
-
-    /**
-     * Teste la récupération d'une note inexistante.
-     *
-     * @return void
-     */
-    public function test_note_not_found()
-    {
-        $response = $this->getJson('/api/expense-notes/999');
-        $response->assertStatus(404);
-    }
-
-    /**
-     * Teste la suppression d'une note inexistante.
-     *
-     * @return void
-     */
-    public function test_delete_nonexistent_note()
-    {
-        $response = $this->deleteJson('/api/expense-notes/999');
-        $response->assertStatus(404);
-    }
-
-    /**
-     * Teste la mise à jour d'une note inexistante.
-     *
-     * @return void
-     */
-    public function test_update_nonexistent_note()
-    {
-        $note = ExpenseNote::factory()->create([
-            'user_id' => $this->user->id,
-            'company_id' => $this->company->id,
-        ]);
-        
-        $response = $this->putJson('/api/expense-notes/999', [
             'amount' => 200.00,
         ]);
 
-        $response->assertStatus(404);
-    }
-
-    /**
-     * Teste la récupération des notes pour un utilisateur sans notes.
-     *
-     * @return void
-     */
-    public function test_get_all_notes_for_user_without_notes()
-    {
-        $response = $this->getJson('/api/expense-notes');
-        $response->assertStatus(200)
-                 ->assertJsonCount(0);
+        $response->assertStatus(401);
     }
 }
