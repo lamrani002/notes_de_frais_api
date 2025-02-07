@@ -3,7 +3,6 @@
 namespace Database\Factories;
 
 use App\Models\Company;
-use App\Models\User;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
 /**
@@ -19,8 +18,8 @@ class ExpenseNoteFactory extends Factory
     public function definition(): array
     {
         return [
-            'user_id' => User::factory(),
-            'company_id' => Company::factory(),
+            'user_id' => 1,
+            'company_id' => Company::inRandomOrder()->first()->id ?? Company::factory(),
             'note_date' => $this->faker->date(),
             'amount' => $this->faker->randomFloat(2, 10, 500),
             'type' => $this->faker->randomElement(['essence', 'péage', 'repas', 'conférence']),
