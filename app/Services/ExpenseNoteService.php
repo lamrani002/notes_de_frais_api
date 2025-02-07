@@ -3,6 +3,7 @@ namespace App\Services;
 
 use App\Models\ExpenseNote;
 use Exception;
+use Illuminate\Database\Eloquent\ModelNotFoundException;
 
 /**
  * Service pour gérer les opérations sur les notes de frais.
@@ -10,105 +11,118 @@ use Exception;
 class ExpenseNoteService
 {
     /**
-     * L'identifiant de l'utilisateur (avec ID= 1).
+     * Vérifie si l'utilisateur est `id = 1`
      *
-     * @var int
+     * @param int $userId
+     * @throws Exception
      */
-    protected $userId;
-
-    /**
-     * Constructeur du service ExpenseNoteService.
-     * TODO: Récupérer dynamiquement l'utilisateur authentifié.
-     */
-    public function __construct()
+    private function checkAdminAccess($userId)
     {
-        $this->userId = 1; 
+        if ($userId !== 1) {
+            throw new Exception("Accès interdit. Seul l'utilisateur #1 peut gérer ces données.");
+        }
     }
 
     /**
-     * Récupère toutes les notes de frais de l'utilisateur (ID =1).
+     * Récupère toutes les notes de frais (accessible à tous les utilisateurs).
      *
      * @return \Illuminate\Database\Eloquent\Collection
-     * @throws Exception Si une erreur survient.
      */
     public function getAllNotes()
     {
         try {
-            return ExpenseNote::where('user_id', $this->userId)->get();
+            return ExpenseNote::all();
         } catch (Exception $e) {
-            throw new Exception("Erreur lors de la récupération des notes de frais.");
+            throw new Exception("Erreur lors de la récupération des notes de frais : " . $e->getMessage());
         }
     }
 
     /**
-     * Récupère note de frais spécifique par ID.
+     * Récupère une note de frais spécifique.
      *
      * @param int $id L'identifiant de la note de frais.
      * @return ExpenseNote
-     * @throws ModelNotFoundException Si la note de frais est introuvable.
+     * @throws Exception Si la note de frais est introuvable.
      */
     public function getNoteById($id)
     {
-        return ExpenseNote::where('user_id', $this->userId)->findOrFail($id);  
+        try {
+            return ExpenseNote::findOrFail($id);
+        } catch (ModelNotFoundException $e) {
+            throw new Exception("Note de frais introuvable avec l'ID : $id");
+        } catch (Exception $e) {
+            throw new Exception("Erreur lors de la récupération de la note de frais : " . $e->getMessage());
+        }
     }
 
     /**
-     * Crée une nouvelle note de frais pour l'utilisateur actuel.
+     * Crée une nouvelle note de frais (Réservé à user_id = 1).
      *
-     * @param array $data Les données de la nouvelle note de frais.
-     * @return ExpenseNote La note de frais créée.
-     * @throws Exception Si une erreur survient lors de la création.
+     * @param array $data
+     * @param int $userId
+     * @return array Réponse JSON
+     * @throws Exception
      */
-    public function createNote(array $data)
+    public function createNote(array $data, $userId)
     {
+        $this->checkAdminAccess($userId);
+
         try {
-            return ExpenseNote::create([
+            $note = ExpenseNote::create([
                 'note_date' => $data['note_date'],
                 'amount' => $data['amount'],
                 'type' => $data['type'],
                 'registration_date' => $data['registration_date'] ?? now(),
-                'user_id' => $this->userId, // Sécurisé
+                'user_id' => $userId,
                 'company_id' => $data['company_id'],
             ]);
+
+            return ['message' => 'Note créée avec succès', 'note' => $note];
         } catch (Exception $e) {
-            throw new Exception("Erreur lors de la création de la note de frais.");
+            throw new Exception("Erreur lors de la création de la note de frais : " . $e->getMessage());
         }
     }
 
     /**
-     * Met à jour une note de frais existante.
+     * Met à jour une note de frais existante (Réservé à user_id = 1).
      *
-     * @param int $id L'identifiant de la note de frais.
-     * @param array $data Les nouvelles données de la note de frais.
-     * @return ExpenseNote La note de frais mise à jour.
-     * @throws Exception Si une erreur survient lors de la mise à jour.
+     * @param int $id
+     * @param array $data
+     * @param int $userId
+     * @return array Réponse JSON
+     * @throws Exception
      */
-    public function updateNote($id, array $data)
+    public function updateNote($id, array $data, $userId)
     {
+        $this->checkAdminAccess($userId);
+
         try {
-            $expenseNote = ExpenseNote::where('user_id', $this->userId)->findOrFail($id);
+            $expenseNote = $this->getNoteById($id);
             $expenseNote->update($data);
-            return $expenseNote;
+            return ['message' => 'Note mise à jour avec succès', 'note' => $expenseNote];
         } catch (Exception $e) {
-            throw new Exception("Erreur lors de la mise à jour de la note de frais.");
+            throw new Exception("Erreur lors de la mise à jour : " . $e->getMessage());
         }
     }
 
     /**
-     * Supprime une note de frais existante.
+     * Supprime une note de frais existante (Réservé à user_id = 1).
      *
-     * @param int $id L'identifiant de la note de frais à supprimer.
-     * @return array Message de confirmation.
-     * @throws Exception Si une erreur survient lors de la suppression.
+     * @param int $id
+     * @param int $userId
+     * @return array Réponse JSON
+     * @throws Exception
      */
-    public function deleteNote($id)
+    public function deleteNote($id, $userId)
     {
+        $this->checkAdminAccess($userId);
+
         try {
-            $expenseNote = ExpenseNote::where('user_id', $this->userId)->findOrFail($id);
+            $expenseNote = $this->getNoteById($id);
             $expenseNote->delete();
-            return ['message' => 'Note supprimée'];
+            return ['message' => 'Note supprimée avec succès'];
         } catch (Exception $e) {
-            throw new Exception("Erreur lors de la suppression de la note de frais.");
+            throw new Exception("Erreur lors de la suppression : " . $e->getMessage());
         }
     }
 }

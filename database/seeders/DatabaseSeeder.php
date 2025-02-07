@@ -16,23 +16,26 @@ class DatabaseSeeder extends Seeder
     public function run(): void
     {
 
-    // Créer 1 utilisateur spécifique
-    $users = User::factory(2)->create();
-    $users->push(User::factory()->create([
-        'name' => 'Test User',
-        'email' => 'test@example.com',
-    ]));
-
-    // Création de 3 entreprises
-    $companies = Company::factory(3)->create();
-
-    // Création de 10 notes de frais
-    for ($i = 0; $i < 10; $i++) {
-        ExpenseNote::factory()->create([
-            'user_id' => $users->random()->id,
-            'company_id' => $companies->random()->id,
+        // Création de l'utilisateur ADMIN (user_id = 1)
+        $user = User::factory()->create([
+            'id' => 1,
+            'name' => 'Admin User',
+            'email' => 'admin@example.com',
+            'password' => bcrypt('password'),
         ]);
-    }
 
+        // Création de 2 utilisateurs normaux (peuvent seulement lire)
+        User::factory(2)->create();
+
+        // Création de 3 entreprises
+        $companies = Company::factory(3)->create();
+
+        // Création de 10 notes de frais EXCLUSIVEMENT pour user_id = 1
+        for ($i = 0; $i < 10; $i++) {
+            ExpenseNote::factory()->create([
+                'user_id' => $user->id,
+                'company_id' => $companies->random()->id,
+            ]);
+        }
     }
 }
