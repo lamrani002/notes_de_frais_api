@@ -4,10 +4,17 @@ use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\API\ExpenseNoteController;
 
 use App\Http\Controllers\AuthController;
+use Illuminate\Cache\RateLimiting\Limit;
+use Illuminate\Support\Facades\RateLimiter;
+
+// Définition du rate limiting (Maximum 5 tentatives par minute)
+RateLimiter::for('login', function () {
+    return Limit::perMinute(5); 
+});
 
 //systeme d'authentification
 Route::post('/register', [AuthController::class, 'register']);
-Route::post('/login', [AuthController::class, 'login']);
+Route::post('/login', [AuthController::class, 'login'])->middleware('throttle:login');
 
 Route::middleware('auth:sanctum')->group(function () {
     Route::post('/logout', [AuthController::class, 'logout']);
