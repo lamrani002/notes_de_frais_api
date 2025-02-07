@@ -3,15 +3,25 @@
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\API\ExpenseNoteController;
 
-Route::prefix('expense-notes')->group(function () {
-    // GET tous les notes de frais
-    Route::get('/', [ExpenseNoteController::class, 'index']); 
-    // GET une note de frais
-    Route::get('/{id}', [ExpenseNoteController::class, 'show']); 
-    // POST creer une note de frais
-    Route::post('/', [ExpenseNoteController::class, 'store']); 
-    // UPDATE modifier une frais
-    Route::put('/{id}', [ExpenseNoteController::class, 'update']); 
-    // DELETE supprimer une note de frais
-    Route::delete('/{id}', [ExpenseNoteController::class, 'destroy']); 
+use App\Http\Controllers\AuthController;
+
+//systeme d'authentification
+Route::post('/register', [AuthController::class, 'register']);
+Route::post('/login', [AuthController::class, 'login']);
+
+Route::middleware('auth:sanctum')->group(function () {
+    Route::post('/logout', [AuthController::class, 'logout']);
+});
+
+
+Route::middleware('auth:sanctum')->group(function () {
+
+    //Route pour users authentifié
+    Route::get('/expense-notes', [ExpenseNoteController::class, 'index']);
+    Route::get('/expense-notes/{id}', [ExpenseNoteController::class, 'show']);
+
+    // Routes limitées à user_id = 1
+    Route::post('/expense-notes', [ExpenseNoteController::class, 'store']);
+    Route::put('/expense-notes/{id}', [ExpenseNoteController::class, 'update']);
+    Route::delete('/expense-notes/{id}', [ExpenseNoteController::class, 'destroy']);
 });
